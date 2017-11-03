@@ -1,0 +1,4 @@
+[submodule "LoRaMac-node"]
+	path = LoRaMac-node
+	url = git@github.com:OpenChirp/LoRaMac-node.git
+	branch = lorabug
