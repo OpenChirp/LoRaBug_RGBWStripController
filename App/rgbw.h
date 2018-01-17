@@ -32,19 +32,21 @@
 
 #define COMMAND_SIZE 5
 
-
+#define PWMTASKSTACKSIZE    1024
+#define UPDATE_INTERVAL     75  //ms
+#define MAILBOX_SIZE        3
 
 
 
 typedef enum eColors
 {
-	COLOR_BLACK 	= 0b000,
-	COLOR_RED 		= 0b100,
-	COLOR_GREEN 	= 0b010,
+	COLOR_BLACK     = 0b000,
+	COLOR_RED       = 0b100,
+	COLOR_GREEN     = 0b010,
 	COLOR_BLUE 		= 0b001,
-	COLOR_YELLOW	= 0b110,
+	COLOR_YELLOW	    = 0b110,
 	COLOR_CYAN		= 0b011,
-	COLOR_PURPLE	= 0b101,
+	COLOR_PURPLE	    = 0b101,
 	COLOR_WHITE		= 0b111
 
 }Color_t;
@@ -68,7 +70,7 @@ struct ColorHandlers_s
 
 struct Command_s
 {
-	uint8_t buff[COMMAND_SIZE];
+    uint8_t buff[COMMAND_SIZE];
 } Command_t;
 
 // Variables Accessible to the main thread

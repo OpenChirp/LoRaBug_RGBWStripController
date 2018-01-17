@@ -7,12 +7,7 @@
  */
 
 #include "rgbw.h"
-
-
-#define PWMTASKSTACKSIZE   	1024
-#define UPDATE_INTERVAL		75	//ms
-#define MAILBOX_SIZE 		3
-
+#include "io.h"
 
 Task_Struct PWMTaskStruct;
 Char TaskPWMStack[PWMTASKSTACKSIZE];
@@ -25,24 +20,41 @@ void PWM_Task_Fxn_Loop();
 
 
 
-void PWM_CreateTask(){
 
-	/* Create pwm Task */
-	Task_Params TaskParams;
-	Task_Params_init(&TaskParams);
 
-	TaskParams.stackSize = PWMTASKSTACKSIZE;
-	TaskParams.stack = &TaskPWMStack;
-	TaskParams.priority = 1;
-	TaskParams.instance->name = "pwm_Task";
-	Task_construct(&PWMTaskStruct, (Task_FuncPtr) PWM_Task_Fxn_Loop, &TaskParams,NULL);
+void PWM_fadeTo(PWMDevice *pwm, uint8_t duty, uint16_t time){
 
-	// Create Mailbox before BIOS_Start
-	mbox = Mailbox_create(sizeof(Command_t), MAILBOX_SIZE, NULL, NULL);
-	if (mbox == NULL)
-	{
-		System_abort("Failed to create mailbox");
-	}
+    int32_t range;
+    int32_t increment;
+    uint16_t divisions = (time < UPDATE_INTERVAL) ? 1 : time / UPDATE_INTERVAL; // mimimum delay is UPDATE_INTERVAL milliseconds
+    int32_t duty_now = pwm->duty;
+
+    if(pwm->inverted){
+        range = duty - (255 - pwm->duty);
+        increment = -(range/divisions);
+        duty = 255 - duty;  // inverts the value (duty, is the final value)
+    }else{
+        range = duty - pwm->duty;
+        increment = (range/divisions);
+    }
+
+    if (range == 0)
+        return;
+
+    for (uint16_t i = 0; i < time; i += UPDATE_INTERVAL){
+
+        duty_now += increment;
+
+        if( duty_now >= 0 && duty_now <= 255){
+            PWM_setDuty(pwm->handler, duty_now/(float)255 * PWM_DUTY_FRACTION_MAX);
+            pwm->duty = duty_now;
+        }else{
+            // adjust for any fraction errors
+            PWM_setDuty(pwm->handler, duty/(float)255 * PWM_DUTY_FRACTION_MAX);
+            pwm->duty = duty;
+        }
+        DELAY_MS(UPDATE_INTERVAL);
+    }
 
 }
 
@@ -56,10 +68,22 @@ void PWM_fadeRainbow(uint32_t delay){
 	PWM_fadeTo(&ColorHandlers.LedBlue, 0, delay);
 }
 
+void PWM_Color_Set(Color_t color)
+{
+    PWM_fadeTo(&ColorHandlers.LedRed,   ((color & COLOR_RED) >> 2) * 255, UPDATE_INTERVAL);
+    PWM_fadeTo(&ColorHandlers.LedGreen, ((color & COLOR_GREEN) >> 1) * 255, UPDATE_INTERVAL);
+    PWM_fadeTo(&ColorHandlers.LedBlue,  ((color & COLOR_BLUE)) * 255, UPDATE_INTERVAL);
+}
 
 void PWM_Pulse(Color_t color, uint16_t delay){
 
 	switch(color){
+
+	case COLOR_BLACK:
+	    PWM_fadeTo(&ColorHandlers.LedRed, 0, delay);
+	    PWM_fadeTo(&ColorHandlers.LedGreen, 0, delay);
+	    PWM_fadeTo(&ColorHandlers.LedBlue, 0, delay);
+	    break;
 
 	case COLOR_RED:
 		PWM_fadeTo(&ColorHandlers.LedRed, 255, delay);
@@ -114,111 +138,91 @@ void PWM_Pulse(Color_t color, uint16_t delay){
 void PWM_Task_Fxn_Loop(){
 
     struct Command_s command;
-    uint16_t delay;
-    uint8_t color;
+    uint8_t prev_mode = 0;           // start in static color mode
+    uint8_t color = COLOR_BLUE; // default color
+    uint16_t delay = 500;       // default delay in ms
 
 	// Initializes PWM devices
 	PWM_Init_Devices();
 
     /* Demo PWM */
 	PWM_fadeRainbow(500);
-	PWM_fadeTo(&ColorHandlers.LedRed, 0, 500);
 
+	//uartputs("# Starting Command Loop...\n");
 
 	while(1){
 
 	    if(!Mailbox_pend(mbox, &command, BIOS_WAIT_FOREVER)) {
-	    	System_abort("Failed to pend mailbox\n");
+	    	    System_abort("Failed to pend mailbox\n");
 	    }
 
 	    switch (command.buff[0])	// Select the operation mode
 	    {
-	    case 0:	// set Fixed Color (byte 1 to 4 contain rgbw intensity)
-	    	// Colors Off
-	    	PWM_fadeTo(&ColorHandlers.LedRed, 0, 200);
-	    	PWM_fadeTo(&ColorHandlers.LedGreen, 0, 200);
-	    	PWM_fadeTo(&ColorHandlers.LedBlue, 0, 200);
 
-	    	PWM_fadeTo(&ColorHandlers.LedRed, command.buff[1], 200);
-	    	PWM_fadeTo(&ColorHandlers.LedGreen, command.buff[2], 200);
-	    	PWM_fadeTo(&ColorHandlers.LedBlue, command.buff[3], 200);
 
+	    case 0:	// set Fixed Color
+	    prev_mode = 0;
+	    color = command.buff[1];
+	    PWM_Color_Set((Color_t)color);
 	    	break;
+
 
 	    case 1:	// Random Color Mode
-
-	    	// Colors Off
-	    	PWM_fadeTo(&ColorHandlers.LedRed, 0, 200);
-	    	PWM_fadeTo(&ColorHandlers.LedGreen, 0, 200);
-	    	PWM_fadeTo(&ColorHandlers.LedBlue, 0, 200);
-
-	    	PWM_fadeTo(&ColorHandlers.LedRed, (uint8_t)randr(0, 255), 200);
-	    	PWM_fadeTo(&ColorHandlers.LedGreen, (uint8_t)randr(0, 255), 200);
-	    	PWM_fadeTo(&ColorHandlers.LedBlue, (uint8_t)randr(0, 255), 200);
-
+	    prev_mode = 1;
+        // Set one of the 8 colors randomly
+        PWM_Color_Set((Color_t)randr(0, 8));
 	    	break;
 
+
 	    case 2: // Rainbow Transition Mode (byte 1 contains delay/50)
-
-	    	delay = command.buff[1] * 50;
-
+	    prev_mode = 2;
+	    	delay = 1000; //command.buff[2] * 50;
 	    	while(Mailbox_getNumPendingMsgs(mbox) == 0){
 	    		PWM_fadeRainbow(delay);
 	    	}
 	    	break;
 
-	    case 3:	//Pulsating Color (byte 1 contains the color, byte 2 contains delay/50)
 
+	    case 3:	//Pulsating Color Mode (byte 1 contains the color, byte 2 contains delay/50)
+	    prev_mode = command.buff[0];
 	    	color = command.buff[1];
-	    	delay = command.buff[2] * 50;
-
+	    	delay = 750; //command.buff[2] * 50;
 	    	while(Mailbox_getNumPendingMsgs(mbox) == 0){
 	    		PWM_Pulse((Color_t)color, delay);
 	    	}
 	    	break;
 
-	    default:
+
+
+	    	// SPECIAL COMMANDS
+
+	    case 0xa:  // Next Color
+	        command.buff[0] = prev_mode;
+	        command.buff[1] = (color + 1) % 8;
+	        Mailbox_post(mbox, &command, BIOS_NO_WAIT);
+	    break;
+
+	    case 0xb:  // Previous Color
+	        command.buff[0] = prev_mode;
+	        command.buff[1] = (color - 1) % 8;
+	        Mailbox_post(mbox, &command, BIOS_NO_WAIT);
+	    break;
+
+	    case 0xc:  // Change mode
+	        command.buff[0] = (prev_mode + 1) % 4; // change to the next mode
+	        Mailbox_post(mbox, &command, BIOS_NO_WAIT);
+	    break;
+
+
+	    default: // Colors Off
+	        PWM_Pulse(COLOR_BLACK, 0);
 	    	break;
 	    }
 	}
 
 }
 
-void PWM_fadeTo(PWMDevice *pwm, uint8_t duty, uint16_t time){
 
-	int32_t range;
-	int32_t increment;
-	uint16_t divisions = (time < UPDATE_INTERVAL) ? 1 : time / UPDATE_INTERVAL;	// mimimum delay is UPDATE_INTERVAL milliseconds
-	int32_t duty_now = pwm->duty;
-
-	if(pwm->inverted){
-		range = duty - (255 - pwm->duty);
-		increment = -(range/divisions);
-		duty = 255 - duty;	// inverts the value (duty, is the final value)
-	}else{
-		range = duty - pwm->duty;
-		increment = (range/divisions);
-	}
-
-	if (range == 0)
-		return;
-
-	for (uint16_t i = 0; i < time; i += UPDATE_INTERVAL){
-
-		duty_now += increment;
-
-		if( duty_now >= 0 && duty_now <= 255){
-			PWM_setDuty(pwm->handler, duty_now/(float)255 * PWM_DUTY_FRACTION_MAX);
-			pwm->duty = duty_now;
-		}else{
-			// adjust for any fraction errors
-			PWM_setDuty(pwm->handler, duty/(float)255 * PWM_DUTY_FRACTION_MAX);
-			pwm->duty = duty;
-		}
-		DELAY_MS(UPDATE_INTERVAL);
-	}
-
-}
 
 
 /*
@@ -275,5 +279,26 @@ void PWM_Init_Devices(){
     PWM_setDuty(ColorHandlers.LedRed.handler, 1 * PWM_DUTY_FRACTION_MAX);
     PWM_setDuty(ColorHandlers.LedGreen.handler, 1 * PWM_DUTY_FRACTION_MAX);
     PWM_setDuty(ColorHandlers.LedBlue.handler, 1 * PWM_DUTY_FRACTION_MAX);
+
+}
+
+void PWM_CreateTask(int priority){
+
+    /* Create pwm Task */
+    Task_Params TaskParams;
+    Task_Params_init(&TaskParams);
+
+    TaskParams.stackSize = PWMTASKSTACKSIZE;
+    TaskParams.stack = &TaskPWMStack;
+    TaskParams.priority = priority;
+    TaskParams.instance->name = "pwm_Task";
+    Task_construct(&PWMTaskStruct, (Task_FuncPtr) PWM_Task_Fxn_Loop, &TaskParams,NULL);
+
+    // Create Mailbox before BIOS_Start
+    mbox = Mailbox_create(sizeof(Command_t), MAILBOX_SIZE, NULL, NULL);
+    if (mbox == NULL)
+    {
+        System_abort("Failed to create mailbox");
+    }
 
 }
