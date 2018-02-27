@@ -249,7 +249,7 @@ void PWM_Task_Fxn_Loop(){
 /*
  * Function that initiates the PWM devices, the LEDs are powered at LOW
  * this means their PWM value should be the inverted of the active.
- * i.e. 255 duty cycle means 0, the Mosfets are not inverted.
+ * Mosfets are not inverted.
  */
 void PWM_Init_Devices(){
 

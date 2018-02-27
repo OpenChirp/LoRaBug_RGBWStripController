@@ -20,7 +20,6 @@
 
 
 #define BUTTONS_STACK_SIZE 350
-#define MAX_DELAY
 
 #define DELAY_MS(i)    Task_sleep(((i) * 1000) / Clock_tickPeriod)
 #define TIME_MS(i) i*(1000/Clock_tickPeriod)
@@ -35,7 +34,6 @@ static PIN_Handle navigationPinHandle;
 
 volatile uint32_t lastPress = 0;
 volatile uint8_t state = 0;
-volatile uint8_t delay = 20; // 20*50 = 1000 ms
 
 PIN_Config navigationPinTable[] = {
     Board_BTN_NEXT   | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,

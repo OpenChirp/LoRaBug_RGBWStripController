@@ -26,10 +26,7 @@
 /*
  *  ======== main ========
  */
-int main(void)
-
-
-{
+int main(void){
 
     /* Call board init functions */
     Board_initGeneral();
@@ -38,7 +35,6 @@ int main(void)
     Board_initUART();
     Board_initPWM();
     // Board_initWatchdog();
-
 
     /* Construct lora Task  thread  (Priority 2 (Higher) )*/
     LORA_CreateTask(2);

@@ -2,9 +2,8 @@
  * @author Artur Balanuta <Artur [dot] Balanuta [at] Gmail [dot] com>
  */
 
+
 /* XDCtools Header files */
-
-
 #include <xdc/std.h>
 #include <string.h> // strlen in uartputs and LoRaWan code
 #include <xdc/runtime/System.h>
@@ -42,18 +41,24 @@ Char loraTaskStack[LORASTACKSIZE];
 /*!
  * Defines the application data transmission duty cycle. 60s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            15000
+#define APP_TX_DUTYCYCLE                            60000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 7s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        0000
+#define APP_TX_DUTYCYCLE_RND                        7000
 
+// US915 Only Table
+//DataRate  Configuration   bits/s  MaxPayload
+//DR0       SF10/125kHz     980     19
+//DR1       SF9/125kHz      1760    61
+//DR2       SF8/125kHz      3125    133
+//DR3       SF7/125kHz      5470    250
+//DR4       SF8/500kHz      12500   250
 /*!
  * Default datarate
  */
-//#define LORAWAN_DEFAULT_DATARATE                    DR_0
 #define LORAWAN_DEFAULT_DATARATE                    DR_4
 
 /*!
