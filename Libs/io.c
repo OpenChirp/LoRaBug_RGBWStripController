@@ -281,7 +281,7 @@ void uarthexdump(uint8_t *data, size_t size) {
         	uartprintf(" ");
             if ((i+1) % 16 == 0) {
             	// done with row
-            	uartprintf("|  %s \n", ascii);
+            	uartprintf("|  %s \r\n", ascii);
             } else if (i+1 == size) {
             	// must be done with stream
                 ascii[(i+1) % 16] = '\0';
@@ -291,7 +291,7 @@ void uarthexdump(uint8_t *data, size_t size) {
                 for (j = (i+1) % 16; j < 16; ++j) {
                 	uartprintf("   ");
                 }
-                uartprintf("|  %s \n", ascii);
+                uartprintf("|  %s \r\n", ascii);
             }
         }
     }
