@@ -41,7 +41,7 @@ int main(void)
 
 
     /* Construct lora Task  thread  (Priority 2 (Higher) )*/
-    //LORA_CreateTask(2);
+    LORA_CreateTask(2);
 
     /* Create task that handles PWM Devices (Priority 1)*/
     PWM_CreateTask(1);

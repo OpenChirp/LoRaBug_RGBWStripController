@@ -25,16 +25,11 @@
 
 #include "utilities.h"
 
-
-#define TIME_MS (1000/Clock_tickPeriod)
-#define DELAY_MS(i)    Task_sleep(((i) * 1000) / Clock_tickPeriod)
-#define DELAY_US(i)    Task_sleep(((i) * 1) / Clock_tickPeriod)
-
-#define COMMAND_SIZE 5
+#define COMMAND_SIZE 4
 
 #define PWMTASKSTACKSIZE    1024
 #define UPDATE_INTERVAL     75  //ms
-#define MAILBOX_SIZE        3
+#define MAILBOX_SIZE        5
 
 
 
@@ -78,7 +73,7 @@ extern Mailbox_Handle mbox;
 
 void PWM_CreateTask();
 void PWM_Init_Devices();
-void PWM_fadeTo(PWMDevice *pwm, uint8_t duty, uint16_t time);
+void PWM_fadeTo(uint8_t rgb_target[3], uint32_t time);
 void PWM_test();
 
 

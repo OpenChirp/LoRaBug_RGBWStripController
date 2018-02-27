@@ -42,13 +42,13 @@ Char loraTaskStack[LORASTACKSIZE];
 /*!
  * Defines the application data transmission duty cycle. 60s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            60000
+#define APP_TX_DUTYCYCLE                            15000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 7s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        7000
+#define APP_TX_DUTYCYCLE_RND                        0000
 
 /*!
  * Default datarate
@@ -193,12 +193,14 @@ static void PrepareTxFrame( uint8_t port )
     static uint32_t counter = 0;
     //printf("# PrepareTxFrame\n");
 
+    uartprintf("# Prepare Frame Port %d\r\n", port);
+
     switch( port )
     {
     case 2:
-    	memset(AppData, '\0', sizeof(AppData));
+        memset(AppData, '\00', sizeof(AppData));
         memcpy(AppData, &counter, sizeof(counter));
-        AppDataSize = sizeof(counter);
+        AppDataSize = 4;
         counter++;
         break;
 
@@ -242,7 +244,7 @@ static bool SendFrame( void )
     McpsReq_t mcpsReq;
     LoRaMacTxInfo_t txInfo;
 
-    uartputs("# SendFrame\n");
+    uartputs("# SendFrame");
 
 
     if( LoRaMacQueryTxPossible( AppDataSize, &txInfo ) != LORAMAC_STATUS_OK )
@@ -350,7 +352,7 @@ static void OnLed4TimerEvent( void )
 static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
 {
     //printf("# McpsConfirm\n");
-    uartputs("# McpsConfirm\n");
+    uartputs("# McpsConfirm");
     if( mcpsConfirm->Status == LORAMAC_EVENT_INFO_STATUS_OK )
     {
         switch( mcpsConfirm->McpsRequest )
@@ -361,7 +363,7 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
             {
                 // Check Datarate
                 // Check TxPower
-                uartputs("# Got McpsConfirm: MCPS_UNCONFIRMED\n");
+                uartputs("# Got McpsConfirm: MCPS_UNCONFIRMED");
                 break;
             }
             case MCPS_CONFIRMED:
@@ -370,7 +372,7 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
                 // Check TxPower
                 // Check AckReceived
                 // Check NbTrials
-                uartputs("# Got McpsConfirm: MCPS_CONFIRMED\n");
+                uartputs("# Got McpsConfirm: MCPS_CONFIRMED");
                 break;
             }
             case MCPS_PROPRIETARY:
@@ -407,28 +409,26 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
     {
         case MCPS_UNCONFIRMED:
         {
-            uartputs("# Got McpsIndication: MCPS_UNCONFIRMED\n");
-            //TODO write code to change color (below as well)
+            uartputs("# Got McpsIndication: MCPS_UNCONFIRMED");
 
-            uartprintf("Received %d bytes on Port %d\r\n", mcpsIndication->BufferSize, mcpsIndication->Port);
+            uartprintf("Received %d bytes on Port %d \r\n", mcpsIndication->BufferSize, mcpsIndication->Port);
+            uarthexdump(mcpsIndication->Buffer, mcpsIndication->BufferSize);
 
             // Process Received Data
             if (mcpsIndication->BufferSize > 0){
+                struct Command_s cmd;
+                memcpy(cmd.buff, mcpsIndication->Buffer, (mcpsIndication->BufferSize > COMMAND_SIZE)?COMMAND_SIZE:mcpsIndication->BufferSize);
 
-            	struct Command_s cmd;
-            	memcpy(cmd.buff, mcpsIndication->Buffer, COMMAND_SIZE);
-
-            	if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
-            		System_printf("Failed to post on mailbox\n");
-            	}
+                if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
+                    System_printf("Failed to post on mailbox\n");
+                }
             }
 
             break;
         }
         case MCPS_CONFIRMED:
         {
-            uartputs("# Got McpsIndication: MCPS_CONFIRMED\n");
-            //TODO write code to change color
+            uartputs("# Got McpsIndication: MCPS_CONFIRMED");
             break;
         }
         case MCPS_PROPRIETARY:
@@ -615,15 +615,18 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
                 // Status is OK, node has joined the network
                 DeviceState = DEVICE_STATE_SEND;
 
-                uartputs("# MlmeConfirm: Joined\n");
+                printf("# MlmeConfirm: Joined\n");
+                uartputs("# MlmeConfirm: Joined");
 
-                // Send Command to activate rainbow mode
                 struct Command_s cmd;
-                cmd.buff[0] = 2;	// Rainbow Mode
-                cmd.buff[1] = 100;	// delay of 1000ms/50 = 20
-
+                cmd.buff[0] = 0x0A;	// Change Color to Green
+                cmd.buff[1] = COLOR_GREEN;
                 if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
                 	System_printf("Failed to post on mailbox\n");
+                }
+                cmd.buff[0] = 0x00; // Fixed Color
+                if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
+                    System_printf("Failed to post on mailbox\n");
                 }
             }
             else
@@ -635,7 +638,7 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
         }
         case MLME_LINK_CHECK:
         {
-        	uartputs("# MlmeConfirm: Link Check\n");
+        	uartputs("# MlmeConfirm: Link Check");
             if( mlmeConfirm->Status == LORAMAC_EVENT_INFO_STATUS_OK )
             {
                 // Check DemodMargin
@@ -674,21 +677,23 @@ void loraMainTask()
     MibRequestConfirm_t mibReq;
 
 
-    // Send Command to blink Blue Led every 500 ms
+    // Send Command to blink RED
     struct Command_s cmd;
-    cmd.buff[0] = 3;
-    cmd.buff[1] = COLOR_RED;
-    cmd.buff[2] = 10;
-
+    cmd.buff[0] = 0x0A;//change color
+    cmd.buff[1] = COLOR_RED;//
     if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
     	System_printf("Failed to post on mailbox\n");
+    }
+    cmd.buff[0] = 0x02;//Blink Mode
+    if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
+    System_printf("Failed to post on mailbox\n");
     }
 
     BoardInitMcu( );
     BoardInitPeriph( );
 
     printf("# Board initialized\n");
-    uartputs("# Board initialized\n");
+    uartputs("# Board initialized");
 
     DeviceState = DEVICE_STATE_INIT;
 
@@ -734,7 +739,7 @@ void loraMainTask()
             }
             case DEVICE_STATE_JOIN:
             {
-                //printf("# DeviceState: DEVICE_STATE_JOIN\n");
+                printf("# DeviceState: DEVICE_STATE_JOIN\n");
 #if( OVER_THE_AIR_ACTIVATION != 0 )
                 MlmeReq_t mlmeReq;
 
@@ -822,7 +827,7 @@ void loraMainTask()
             }
             case DEVICE_STATE_SLEEP:
             {
-                //printf("# DeviceState: DEVICE_STATE_SLEEP\n");
+            //printf("# DeviceState: DEVICE_STATE_SLEEP\n");
                 // Wake up through events
 //                TimerLowPowerHandler( );
                 Task_sleep(TIME_MS * 10);

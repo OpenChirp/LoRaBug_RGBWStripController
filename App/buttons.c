@@ -20,6 +20,7 @@
 
 
 #define BUTTONS_STACK_SIZE 350
+#define MAX_DELAY
 
 #define DELAY_MS(i)    Task_sleep(((i) * 1000) / Clock_tickPeriod)
 #define TIME_MS(i) i*(1000/Clock_tickPeriod)
@@ -32,7 +33,9 @@ Mailbox_Handle mbox;
 static PIN_State  navigationPinState;
 static PIN_Handle navigationPinHandle;
 
-uint32_t lastPress = 0;
+volatile uint32_t lastPress = 0;
+volatile uint8_t state = 0;
+volatile uint8_t delay = 20; // 20*50 = 1000 ms
 
 PIN_Config navigationPinTable[] = {
     Board_BTN_NEXT   | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,
@@ -41,6 +44,9 @@ PIN_Config navigationPinTable[] = {
     PIN_TERMINATE
 };
 
+// State 0: Changing Modes
+// State 1: Changing Colors
+// State 2: Change Delay
 
 void navigationIntCallback(PIN_Handle handle, PIN_Id pinId){
     PIN_setInterrupt(navigationPinHandle, pinId|PIN_IRQ_DIS); //disable interupts on this pin
@@ -51,26 +57,58 @@ void navigationIntCallback(PIN_Handle handle, PIN_Id pinId){
         lastPress = (uint32_t) Clock_getCompletedTicks();
 
         struct Command_s cmd;
+        cmd.buff[0] = 0xFF;
 
-        switch(pinId){
+        switch (state){
 
-        case Board_BTN_NEXT:
-            cmd.buff[0] = 0xa;
+        case 0: // Changing Modes
+            switch(pinId){
+            case Board_BTN_NEXT:
+                cmd.buff[0] = 0x10;
+            break;
+            case Board_BTN_PREV:
+                cmd.buff[0] = 0x11;
+            break;
+            case Board_BTN_SELECT:
+                state = (state + 1) % 3; //Next State
+            break;
+            }
         break;
 
-        case Board_BTN_PREV:
-            cmd.buff[0] = 0xb;
+        case 1: // Changing Colors
+            switch(pinId){
+            case Board_BTN_NEXT:
+                cmd.buff[0] = 0x0C;
+            break;
+            case Board_BTN_PREV:
+                cmd.buff[0] = 0x0D;
+            break;
+            case Board_BTN_SELECT:
+                state = (state + 1) % 3; //Next State
+            break;
+            }
         break;
 
-        case Board_BTN_SELECT:
-            cmd.buff[0] = 0xc;
+        case 2: // Changing Delay
+            switch(pinId){
+            case Board_BTN_NEXT:
+                cmd.buff[0] = 0x0E;
+            break;
+            case Board_BTN_PREV:
+                cmd.buff[0] = 0x0F;
+            break;
+            case Board_BTN_SELECT:
+                state = (state + 1) % 3; //Next State
+            break;
+            }
         break;
         }
-
-
-        if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
-            System_printf("Failed to post on mailbox\n");
+        if (cmd.buff[0] != 0xff){
+            if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
+                System_printf("Failed to post on mailbox\n");
+            }
         }
+
     }
 
     PIN_setInterrupt(navigationPinHandle, pinId|PIN_IRQ_NEGEDGE);
