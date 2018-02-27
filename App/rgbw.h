@@ -10,7 +10,7 @@
 #define APPS_RGBWSTRIPCOTROLLER_RGBW_H_
 
 #include <xdc/std.h>
-
+#include <limits.h>
 
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
@@ -30,6 +30,7 @@
 #define PWMTASKSTACKSIZE    1024
 #define UPDATE_INTERVAL     75  //ms
 #define MAILBOX_SIZE        5
+#define MAX_PWM_DUTY        INT_MAX
 
 
 
@@ -48,7 +49,7 @@ typedef enum eColors
 
 typedef struct PWMDevice_s {
 	PWM_Handle handler;
-	volatile uint8_t duty;		// duty cycle of the pwm device (0-255)
+	volatile uint32_t duty;		// duty cycle of the pwm device (0 - MAX_PWM_DUTY)
 	bool inverted;				// used to negate the duty cycle
 } PWMDevice;
 
@@ -73,7 +74,7 @@ extern Mailbox_Handle mbox;
 
 void PWM_CreateTask();
 void PWM_Init_Devices();
-void PWM_fadeTo(uint8_t rgb_target[3], uint32_t time);
+void PWM_fadeTo(int32_t rgb_target[3], uint32_t time);
 void PWM_test();
 
 
