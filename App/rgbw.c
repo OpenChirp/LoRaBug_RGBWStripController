@@ -39,44 +39,33 @@ void PWM_fadeTo(int32_t rgb_target[3], uint32_t time){
     int32_t green_inc = ((int32_t)rgb_target[1] - (int32_t)duty_green)/(int32_t)update_cycles;
     int32_t blue_inc = ((int32_t)rgb_target[2] - (int32_t)duty_blue)/(int32_t)update_cycles;
 
+
     for (uint32_t i = 0; i < update_cycles; i++){
         duty_red += red_inc;
         duty_green += green_inc;
         duty_blue += blue_inc;
 
-        PWM_setDuty((&c_handler.LedRed)->handler,
-                    (MAX_PWM_DUTY-duty_red)/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
-        PWM_setDuty((&c_handler.MosfetRed)->handler,
-                    duty_red/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+        PWM_setDuty((&c_handler.LedRed)->handler, (MAX_PWM_DUTY-duty_red)/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+        PWM_setDuty((&c_handler.MosfetRed)->handler, (MIN_PWM_DUTY_R + duty_red*(1-MIN_PWM_DUTY_R_RATIO))/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
 
-        PWM_setDuty((&c_handler.LedGreen)->handler,
-                    (MAX_PWM_DUTY-duty_green)/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
-        PWM_setDuty((&c_handler.MosfetGreen)->handler,
-                    duty_green/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+        PWM_setDuty((&c_handler.LedGreen)->handler, (MAX_PWM_DUTY-duty_green)/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+        PWM_setDuty((&c_handler.MosfetGreen)->handler, (MIN_PWM_DUTY_G + duty_green*(1-MIN_PWM_DUTY_G_RATIO))/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
 
-        PWM_setDuty((&c_handler.LedBlue)->handler,
-                    (MAX_PWM_DUTY-duty_blue)/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
-        PWM_setDuty((&c_handler.MosfetBlue)->handler,
-                    duty_blue/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+        PWM_setDuty((&c_handler.LedBlue)->handler, (MAX_PWM_DUTY-duty_blue)/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+        PWM_setDuty((&c_handler.MosfetBlue)->handler, (MIN_PWM_DUTY_B + duty_blue*(1-MIN_PWM_DUTY_B_RATIO))/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
 
         DELAY_MS(UPDATE_INTERVAL);
     }
 
-    // Fix fractional imprecisions
-    PWM_setDuty((&c_handler.LedRed)->handler,
-                (MAX_PWM_DUTY-rgb_target[0])/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
-    PWM_setDuty((&c_handler.MosfetRed)->handler,
-                rgb_target[0]/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+    // Fix fractional imprecision
+    PWM_setDuty((&c_handler.LedRed)->handler, (MAX_PWM_DUTY-rgb_target[0])/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+    PWM_setDuty((&c_handler.MosfetRed)->handler,(MIN_PWM_DUTY_R + rgb_target[0]*(1-MIN_PWM_DUTY_R_RATIO))/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
 
-    PWM_setDuty((&c_handler.LedGreen)->handler,
-                (MAX_PWM_DUTY-rgb_target[1])/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
-    PWM_setDuty((&c_handler.MosfetGreen)->handler,
-                    rgb_target[1]/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+    PWM_setDuty((&c_handler.LedGreen)->handler,(MAX_PWM_DUTY-rgb_target[1])/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+    PWM_setDuty((&c_handler.MosfetGreen)->handler,(MIN_PWM_DUTY_G + rgb_target[1]*(1-MIN_PWM_DUTY_G_RATIO))/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
 
-    PWM_setDuty((&c_handler.LedBlue)->handler,
-                (MAX_PWM_DUTY-rgb_target[2])/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
-    PWM_setDuty((&c_handler.MosfetBlue)->handler,
-                    rgb_target[2]/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+    PWM_setDuty((&c_handler.LedBlue)->handler,(MAX_PWM_DUTY-rgb_target[2])/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
+    PWM_setDuty((&c_handler.MosfetBlue)->handler, (MIN_PWM_DUTY_B + rgb_target[2]*(1-MIN_PWM_DUTY_B_RATIO))/(float)MAX_PWM_DUTY * PWM_DUTY_FRACTION_MAX);
 
     (&c_handler.LedRed)->duty = rgb_target[0];
     (&c_handler.MosfetRed)->duty = rgb_target[0];
@@ -111,7 +100,7 @@ void PWM_Task_Fxn_Loop(){
     struct Command_s command;
     uint8_t mode, prev_mode = 2;    // start in Pulsating Mode
     uint8_t color = COLOR_RED;
-    uint32_t delay = 1500;          // default delay in ms
+    uint32_t delay = 5000;          // default delay in ms
 
 	// Initializes PWM devices
 	PWM_Init_Devices();
@@ -288,7 +277,7 @@ void PWM_Init_Devices(){
     PWM_start(c_handler.MosfetWhite.handler);
 
 
-    // RGB LEDs LOW is at duty cycle 100 % (255)
+    // RGB LEDs LOW is at duty cycle 100%
     c_handler.LedRed.inverted = true;
     c_handler.LedRed.duty = MAX_PWM_DUTY;
 	c_handler.LedGreen.inverted = true;

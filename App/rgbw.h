@@ -27,12 +27,19 @@
 
 #define COMMAND_SIZE 4
 
-#define PWMTASKSTACKSIZE    1024
-#define UPDATE_INTERVAL     75  //ms
-#define MAILBOX_SIZE        5
-#define MAX_PWM_DUTY        INT_MAX
+#define PWMTASKSTACKSIZE        1024
+#define UPDATE_INTERVAL         75  //ms
+#define MAILBOX_SIZE            7
+#define MAX_PWM_DUTY            INT_MAX
 
+// adjust the voltage because the LED strip brightness and shutoff voltage is not 0% duty
+#define MIN_PWM_DUTY_R_RATIO    0.25
+#define MIN_PWM_DUTY_G_RATIO    0.25
+#define MIN_PWM_DUTY_B_RATIO    0.25
 
+#define MIN_PWM_DUTY_R          MIN_PWM_DUTY_R_RATIO * INT_MAX
+#define MIN_PWM_DUTY_G          MIN_PWM_DUTY_G_RATIO * INT_MAX
+#define MIN_PWM_DUTY_B          MIN_PWM_DUTY_B_RATIO * INT_MAX
 
 typedef enum eColors
 {
@@ -49,7 +56,7 @@ typedef enum eColors
 
 typedef struct PWMDevice_s {
 	PWM_Handle handler;
-	volatile uint32_t duty;		// duty cycle of the pwm device (0 - MAX_PWM_DUTY)
+	volatile uint32_t duty;		// duty cycle of the pwm device (MIN_PWM_DUTY_X - MAX_PWM_DUTY)
 	bool inverted;				// used to negate the duty cycle
 } PWMDevice;
 

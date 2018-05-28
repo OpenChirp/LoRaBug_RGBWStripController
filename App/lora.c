@@ -41,13 +41,13 @@ Char loraTaskStack[LORASTACKSIZE];
 /*!
  * Defines the application data transmission duty cycle. 60s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            60000
+#define APP_TX_DUTYCYCLE                            60*1000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 7s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        7000
+#define APP_TX_DUTYCYCLE_RND                        0
 
 // US915 Only Table
 //DataRate  Configuration   bits/s  MaxPayload
@@ -64,7 +64,7 @@ Char loraTaskStack[LORASTACKSIZE];
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    false
+#define LORAWAN_CONFIRMED_MSG_ON                    true
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -195,7 +195,7 @@ struct ComplianceTest_s
  */
 static void PrepareTxFrame( uint8_t port )
 {
-    static uint32_t counter = 0;
+    static uint64_t counter = 0;
     //printf("# PrepareTxFrame\n");
 
     uartprintf("# Prepare Frame Port %d\r\n", port);
@@ -204,8 +204,8 @@ static void PrepareTxFrame( uint8_t port )
     {
     case 2:
         memset(AppData, '\00', sizeof(AppData));
-        memcpy(AppData, &counter, sizeof(counter));
-        AppDataSize = 4;
+        memcpy(AppData, &counter, 8);
+        AppDataSize = 8;
         counter++;
         break;
 
@@ -624,12 +624,16 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
                 uartputs("# MlmeConfirm: Joined");
 
                 struct Command_s cmd;
-                cmd.buff[0] = 0x0A;	// Change Color to Green
-                cmd.buff[1] = COLOR_GREEN;
+
+                cmd.buff[0] = 0x00;	// Change Color to Green
                 if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
-                	System_printf("Failed to post on mailbox\n");
+                    System_printf("Failed to post on mailbox\n");
                 }
-                cmd.buff[0] = 0x00; // Fixed Color
+
+                Task_yield();
+
+                cmd.buff[0] = 0x0A; // Fixed Color
+                cmd.buff[1] = COLOR_GREEN;
                 if(!Mailbox_post(mbox, &cmd, BIOS_NO_WAIT)) {
                     System_printf("Failed to post on mailbox\n");
                 }
