@@ -1,5 +1,5 @@
 # LoRaBug_RGBWStripController
-The Firmware for the LoRaBUG RGBW Strip Controller is configured to run as a class C LoRaWAN device.
+The Firmware for the [LoRaBUG RGBW Strip Controller](https://github.com/OpenChirp/LoRaBug/tree/master/Modules/LoRaBUG_RGBW_DaughterBoard) is configured to run as a class C LoRaWAN device.
 
 Add LoRaWAN device ID, application and Network key in App/Commisioning.h
 
